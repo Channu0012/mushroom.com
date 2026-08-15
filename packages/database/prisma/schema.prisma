@@ -862,7 +862,6 @@ model Payment {
   metadata          Json?
 
   order Order @relation(fields: [orderId], references: [id])
-  user  User  @relation(fields: [payerId], references: [id]) @ignored // No relation defined, just reference
 
   @@index([orderId])
   @@index([payerId])
@@ -931,7 +930,6 @@ model Review {
   @@index([createdAt])
   @@map("reviews")
 
-  @@check(rating >= 1 && rating <= 5, name: "rating_range")
 }
 
 // =============================================================================
