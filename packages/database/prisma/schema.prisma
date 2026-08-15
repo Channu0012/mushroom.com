@@ -1,0 +1,1087 @@
+// Mushroom Marketplace — Prisma Schema
+// Production-ready schema with all entities, constraints, indexes
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum UserRole {
+  GROWER
+  B2B_BUYER
+  CONSUMER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+  PENDING_VERIFICATION
+}
+
+enum VerificationStatus {
+  PENDING
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+  MORE_INFO_REQUIRED
+}
+
+enum DocumentType {
+  AADHAAR
+  PAN
+  GST
+  FSSAI
+  FARM_REGISTRATION
+  BUSINESS_REGISTRATION
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  SOLD_OUT
+  EXPIRED
+  REMOVED
+}
+
+enum FulfillmentMethod {
+  PICKUP
+  SELLER_DELIVERY
+  BOTH
+  THIRD_PARTY_LOGISTICS
+}
+
+enum RequirementFrequency {
+  ONE_TIME
+  DAILY
+  WEEKLY
+  MONTHLY
+  CUSTOM
+}
+
+enum RequirementStatus {
+  ACTIVE
+  PAUSED
+  FULFILLED
+  EXPIRED
+  CANCELLED
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COUNTERED
+  EXPIRED
+  WITHDRAWN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  REFUNDED
+  DISPUTED
+}
+
+enum PaymentProvider {
+  RAZORPAY
+}
+
+enum PaymentStatus {
+  INITIATED
+  SUCCESS
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  ON_HOLD
+}
+
+enum ReviewType {
+  BUYER_TO_GROWER
+  GROWER_TO_BUYER
+}
+
+enum FavoriteTargetType {
+  GROWER
+  LISTING
+  REQUIREMENT
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+}
+
+enum NotificationType {
+  // Verification
+  VERIFICATION_SUBMITTED
+  VERIFICATION_APPROVED
+  VERIFICATION_REJECTED
+  VERIFICATION_MORE_INFO
+  // Requirements
+  NEW_REQUIREMENT_MATCH
+  REQUIREMENT_EXPIRED
+  // Offers
+  NEW_OFFER_RECEIVED
+  OFFER_ACCEPTED
+  OFFER_REJECTED
+  OFFER_COUNTERED
+  OFFER_EXPIRED
+  // Messages
+  NEW_MESSAGE
+  // Orders
+  ORDER_CREATED
+  ORDER_CONFIRMED
+  ORDER_PREPARING
+  ORDER_READY
+  ORDER_OUT_FOR_DELIVERY
+  ORDER_DELIVERED
+  ORDER_COMPLETED
+  ORDER_CANCELLED
+  ORDER_DISPUTED
+  // Payments
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  PAYMENT_REFUNDED
+  // Payouts
+  PAYOUT_INITIATED
+  PAYOUT_COMPLETED
+  PAYOUT_FAILED
+  // Reviews
+  REVIEW_REQUEST
+  REVIEW_RECEIVED
+  // Reports
+  REPORT_ACTION_TAKEN
+  // System
+  WELCOME
+  ACCOUNT_SUSPENDED
+  ACCOUNT_REACTIVATED
+}
+
+enum DisputeType {
+  QUALITY
+  QUANTITY
+  DELIVERY
+  PAYMENT
+  FRAUD
+  OTHER
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  ESCALATED
+  CLOSED
+}
+
+enum ReportTargetType {
+  LISTING
+  USER
+  REVIEW
+  MESSAGE
+  REQUIREMENT
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  ACTION_TAKEN
+  DISMISSED
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  OPS_ADMIN
+  VERIFICATION_ADMIN
+  SUPPORT_ADMIN
+  FINANCE_ADMIN
+}
+
+enum AuditAction {
+  USER_VERIFIED
+  USER_REJECTED
+  USER_SUSPENDED
+  USER_REACTIVATED
+  USER_DEACTIVATED
+  LISTING_REMOVED
+  LISTING_FEATURED
+  REQUIREMENT_REMOVED
+  ORDER_STATUS_CHANGED
+  REFUND_ISSUED
+  PARTIAL_REFUND_ISSUED
+  PAYOUT_PROCESSED
+  DISPUTE_RESOLVED
+  REPORT_ACTIONED
+  COMMISSION_CHANGED
+  ADMIN_ROLE_GRANTED
+  ADMIN_ROLE_REVOKED
+  PLATFORM_SETTING_CHANGED
+  VERIFICATION_DOC_APPROVED
+  VERIFICATION_DOC_REJECTED
+}
+
+enum BusinessType {
+  RESTAURANT
+  HOTEL
+  CLOUD_KITCHEN
+  RETAILER
+  GROCERY
+  DISTRIBUTOR
+  FOOD_PROCESSOR
+  CATERER
+  EXPORTER
+  OTHER
+}
+
+enum InventoryTransactionType {
+  STOCK_IN
+  RESERVED
+  RELEASED
+  SOLD
+  ADJUSTMENT
+  EXPIRED
+}
+
+// =============================================================================
+// CORE USER ENTITIES
+// =============================================================================
+
+model User {
+  id                  String     @id @default(uuid())
+  email               String     @unique
+  phone               String?    @unique
+  passwordHash        String     @map("password_hash")
+  role                UserRole
+  status              UserStatus @default(PENDING_VERIFICATION)
+  emailVerifiedAt     DateTime?  @map("email_verified_at")
+  phoneVerifiedAt     DateTime?  @map("phone_verified_at")
+  emailVerifyToken    String?    @unique @map("email_verify_token")
+  emailVerifyExpires  DateTime?  @map("email_verify_expires")
+  passwordResetToken  String?    @unique @map("password_reset_token")
+  passwordResetExpires DateTime? @map("password_reset_expires")
+  lastLoginAt         DateTime?  @map("last_login_at")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+  deletedAt           DateTime?  @map("deleted_at")
+
+  // Relations
+  profile              Profile?
+  farm                 Farm?
+  business             Business?
+  refreshTokens        RefreshToken[]
+  addresses            Address[]
+  sentOffers           Offer[]        @relation("GrowerOffers")
+  receivedOffers       Offer[]        @relation("BuyerOffers")
+  buyerOrders          Order[]        @relation("BuyerOrders")
+  growerOrders         Order[]        @relation("GrowerOrders")
+  buyerRequirements    BuyerRequirement[]
+  sentMessages         Message[]
+  conversationMembers  ConversationMember[]
+  reviewsGiven         Review[]       @relation("ReviewsGiven")
+  reviewsReceived      Review[]       @relation("ReviewsReceived")
+  favorites            Favorite[]
+  notifications        Notification[]
+  raisedDisputes       Dispute[]      @relation("DisputeRaiser")
+  againstDisputes      Dispute[]      @relation("DisputeAgainst")
+  reports              Report[]
+  adminRoles           AdminRoleAssignment[]
+  auditLogs            AuditLog[]
+  payouts              Payout[]
+  listings             Listing[]
+  inventoryTransactions InventoryTransaction[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  tokenHash   String   @unique @map("token_hash")
+  expiresAt   DateTime @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  deviceInfo  String?  @map("device_info")
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Profile {
+  id          String  @id @default(uuid())
+  userId      String  @unique @map("user_id")
+  displayName String  @map("display_name")
+  avatarUrl   String? @map("avatar_url")
+  bio         String?
+  city        String?
+  state       String?
+  country     String  @default("IN")
+  postalCode  String? @map("postal_code")
+  latitude    Decimal? @db.Decimal(10, 7)
+  longitude   Decimal? @db.Decimal(10, 7)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([city, state])
+  @@map("profiles")
+}
+
+// =============================================================================
+// FARM (GROWER)
+// =============================================================================
+
+model Farm {
+  id                  String             @id @default(uuid())
+  growerId            String             @unique @map("grower_id")
+  name                String
+  slug                String             @unique
+  description         String?
+  coverImageUrl       String?            @map("cover_image_url")
+  images              Json               @default("[]") // string[]
+  city                String
+  state               String
+  country             String             @default("IN")
+  postalCode          String?            @map("postal_code")
+  latitude            Decimal?           @db.Decimal(10, 7)
+  longitude           Decimal?           @db.Decimal(10, 7)
+  establishedYear     Int?               @map("established_year")
+  farmSizeAcres       Decimal?           @db.Decimal(8, 2) @map("farm_size_acres")
+  mushroomVarieties   String[]           @map("mushroom_varieties") // display list
+  verificationStatus  VerificationStatus @default(PENDING) @map("verification_status")
+  verifiedAt          DateTime?          @map("verified_at")
+  verifiedBy          String?            @map("verified_by") // admin user id
+  verificationNotes   String?            @map("verification_notes")
+  isActive            Boolean            @default(true) @map("is_active")
+  isFeatured          Boolean            @default(false) @map("is_featured")
+  totalCompletedOrders Int               @default(0) @map("total_completed_orders")
+  averageRating       Decimal?           @db.Decimal(3, 2) @map("average_rating")
+  totalReviews        Int                @default(0) @map("total_reviews")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  grower              User               @relation(fields: [growerId], references: [id], onDelete: Cascade)
+  listings            Listing[]
+  verificationDocs    VerificationDocument[]
+
+  @@index([verificationStatus])
+  @@index([city, state])
+  @@index([isActive])
+  @@index([isFeatured])
+  @@map("farms")
+}
+
+// =============================================================================
+// BUSINESS (B2B BUYER)
+// =============================================================================
+
+model Business {
+  id                  String             @id @default(uuid())
+  buyerId             String             @unique @map("buyer_id")
+  businessName        String             @map("business_name")
+  businessType        BusinessType       @map("business_type")
+  gstNumber           String?            @map("gst_number")
+  fssaiNumber         String?            @map("fssai_number")
+  website             String?
+  city                String
+  state               String
+  country             String             @default("IN")
+  postalCode          String?            @map("postal_code")
+  verificationStatus  VerificationStatus @default(PENDING) @map("verification_status")
+  verifiedAt          DateTime?          @map("verified_at")
+  verifiedBy          String?            @map("verified_by")
+  verificationNotes   String?            @map("verification_notes")
+  isActive            Boolean            @default(true) @map("is_active")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  buyer               User               @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  verificationDocs    VerificationDocument[]
+
+  @@index([verificationStatus])
+  @@index([businessType])
+  @@index([city, state])
+  @@map("businesses")
+}
+
+// =============================================================================
+// VERIFICATION DOCUMENTS
+// =============================================================================
+
+model VerificationDocument {
+  id           String         @id @default(uuid())
+  entityType   String         @map("entity_type") // "FARM" | "BUSINESS"
+  entityId     String         @map("entity_id")
+  documentType DocumentType   @map("document_type")
+  fileUrl      String         @map("file_url") // private Cloudinary URL
+  fileName     String         @map("file_name")
+  mimeType     String         @map("mime_type")
+  fileSizeBytes Int?          @map("file_size_bytes")
+  status       DocumentStatus @default(PENDING)
+  notes        String?
+  uploadedAt   DateTime       @default(now()) @map("uploaded_at")
+  reviewedAt   DateTime?      @map("reviewed_at")
+  reviewedBy   String?        @map("reviewed_by")
+
+  farm     Farm?     @relation(fields: [entityId], references: [id], map: "fk_verif_doc_farm")
+  business Business? @relation(fields: [entityId], references: [id], map: "fk_verif_doc_business")
+
+  @@index([entityType, entityId])
+  @@index([status])
+  @@map("verification_documents")
+}
+
+// =============================================================================
+// MUSHROOM CATALOG
+// =============================================================================
+
+model MushroomCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  imageUrl    String?  @map("image_url")
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  mushroomTypes MushroomType[]
+
+  @@index([slug])
+  @@index([isActive])
+  @@map("mushroom_categories")
+}
+
+model MushroomType {
+  id             String   @id @default(uuid())
+  categoryId     String   @map("category_id")
+  name           String   @unique
+  slug           String   @unique
+  description    String?
+  scientificName String?  @map("scientific_name")
+  imageUrl       String?  @map("image_url")
+  sortOrder      Int      @default(0) @map("sort_order")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  category         MushroomCategory  @relation(fields: [categoryId], references: [id])
+  listings         Listing[]
+  requirements     BuyerRequirement[]
+  offers           Offer[]
+
+  @@index([categoryId])
+  @@index([slug])
+  @@map("mushroom_types")
+}
+
+// =============================================================================
+// LISTINGS & INVENTORY
+// =============================================================================
+
+model Listing {
+  id                   String        @id @default(uuid())
+  growerId             String        @map("grower_id")
+  farmId               String        @map("farm_id")
+  mushroomTypeId       String        @map("mushroom_type_id")
+  title                String
+  description          String?
+  images               Json          @default("[]") // string[]
+  pricePerKg           Decimal       @db.Decimal(10, 2) @map("price_per_kg")
+  currency             String        @default("INR")
+  availableQuantityKg  Decimal       @db.Decimal(10, 3) @map("available_quantity_kg")
+  minOrderQuantityKg   Decimal       @default(1) @db.Decimal(10, 3) @map("min_order_quantity_kg")
+  fulfillmentMethod    FulfillmentMethod @map("fulfillment_method")
+  availableFrom        DateTime      @map("available_from")
+  harvestDate          DateTime?     @map("harvest_date")
+  city                 String
+  state                String
+  country              String        @default("IN")
+  postalCode           String?       @map("postal_code")
+  latitude             Decimal?      @db.Decimal(10, 7)
+  longitude            Decimal?      @db.Decimal(10, 7)
+  status               ListingStatus @default(DRAFT)
+  isB2b                Boolean       @default(true) @map("is_b2b")
+  isB2c                Boolean       @default(true) @map("is_b2c")
+  isFeatured           Boolean       @default(false) @map("is_featured")
+  viewCount            Int           @default(0) @map("view_count")
+  searchVector         Unsupported("tsvector")? @map("search_vector")
+  expiresAt            DateTime?     @map("expires_at")
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+  deletedAt            DateTime?     @map("deleted_at")
+
+  grower               User          @relation(fields: [growerId], references: [id])
+  farm                 Farm          @relation(fields: [farmId], references: [id])
+  mushroomType         MushroomType  @relation(fields: [mushroomTypeId], references: [id])
+  orders               Order[]
+  offers               Offer[]
+  reviews              Review[]
+  favorites            Favorite[]
+  inventoryTransactions InventoryTransaction[]
+
+  @@index([growerId])
+  @@index([farmId])
+  @@index([mushroomTypeId])
+  @@index([status])
+  @@index([city, state])
+  @@index([pricePerKg])
+  @@index([availableFrom])
+  @@index([isFeatured])
+  @@index([createdAt])
+  @@map("listings")
+}
+
+model InventoryTransaction {
+  id              String                   @id @default(uuid())
+  listingId       String                   @map("listing_id")
+  orderId         String?                  @map("order_id")
+  type            InventoryTransactionType
+  quantityKg      Decimal                  @db.Decimal(10, 3) @map("quantity_kg")
+  previousQty     Decimal                  @db.Decimal(10, 3) @map("previous_qty")
+  newQty          Decimal                  @db.Decimal(10, 3) @map("new_qty")
+  reason          String?
+  createdBy       String?                  @map("created_by")
+  createdAt       DateTime                 @default(now()) @map("created_at")
+
+  listing Listing @relation(fields: [listingId], references: [id])
+  order   Order?  @relation(fields: [orderId], references: [id])
+  user    User?   @relation(fields: [createdBy], references: [id])
+
+  @@index([listingId])
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("inventory_transactions")
+}
+
+// =============================================================================
+// BUYER REQUIREMENTS
+// =============================================================================
+
+model BuyerRequirement {
+  id                    String               @id @default(uuid())
+  buyerId               String               @map("buyer_id")
+  mushroomTypeId        String               @map("mushroom_type_id")
+  title                 String
+  description           String?
+  quantityKg            Decimal              @db.Decimal(10, 3) @map("quantity_kg")
+  budgetMin             Decimal?             @db.Decimal(10, 2) @map("budget_min")
+  budgetMax             Decimal?             @db.Decimal(10, 2) @map("budget_max")
+  currency              String               @default("INR")
+  city                  String
+  state                 String
+  country               String               @default("IN")
+  radiusKm              Decimal?             @db.Decimal(8, 2) @map("radius_km")
+  latitude              Decimal?             @db.Decimal(10, 7)
+  longitude             Decimal?             @db.Decimal(10, 7)
+  frequency             RequirementFrequency
+  frequencyNote         String?              @map("frequency_note")
+  requiredFrom          DateTime             @map("required_from")
+  requiredUntil         DateTime?            @map("required_until")
+  fulfillmentPreference FulfillmentMethod    @default(BOTH) @map("fulfillment_preference")
+  status                RequirementStatus    @default(ACTIVE)
+  isVerifiedBuyerOnly   Boolean              @default(false) @map("is_verified_buyer_only")
+  searchVector          Unsupported("tsvector")? @map("search_vector")
+  expiresAt             DateTime?            @map("expires_at")
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+  deletedAt             DateTime?            @map("deleted_at")
+
+  buyer        User         @relation(fields: [buyerId], references: [id])
+  mushroomType MushroomType @relation(fields: [mushroomTypeId], references: [id])
+  offers       Offer[]
+
+  @@index([buyerId])
+  @@index([mushroomTypeId])
+  @@index([status])
+  @@index([city, state])
+  @@index([frequency])
+  @@index([requiredFrom])
+  @@map("buyer_requirements")
+}
+
+// =============================================================================
+// OFFERS
+// =============================================================================
+
+model Offer {
+  id             String      @id @default(uuid())
+  requirementId  String?     @map("requirement_id")
+  listingId      String?     @map("listing_id")
+  mushroomTypeId String      @map("mushroom_type_id")
+  growerId       String      @map("grower_id")
+  buyerId        String      @map("buyer_id")
+  quantityKg     Decimal     @db.Decimal(10, 3) @map("quantity_kg")
+  pricePerKg     Decimal     @db.Decimal(10, 2) @map("price_per_kg")
+  currency       String      @default("INR")
+  deliveryDate   DateTime    @map("delivery_date")
+  frequencyNote  String?     @map("frequency_note")
+  message        String?
+  status         OfferStatus @default(PENDING)
+  parentOfferId  String?     @map("parent_offer_id") // for counter-offers
+  expiresAt      DateTime?   @map("expires_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  requirement  BuyerRequirement? @relation(fields: [requirementId], references: [id])
+  listing      Listing?          @relation(fields: [listingId], references: [id])
+  mushroomType MushroomType      @relation(fields: [mushroomTypeId], references: [id])
+  grower       User              @relation("GrowerOffers", fields: [growerId], references: [id])
+  buyer        User              @relation("BuyerOffers", fields: [buyerId], references: [id])
+  parentOffer  Offer?            @relation("OfferCounters", fields: [parentOfferId], references: [id])
+  counterOffers Offer[]          @relation("OfferCounters")
+  orders       Order[]
+
+  @@index([requirementId])
+  @@index([listingId])
+  @@index([growerId])
+  @@index([buyerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("offers")
+}
+
+// =============================================================================
+// CONVERSATIONS & MESSAGES
+// =============================================================================
+
+model Conversation {
+  id            String    @id @default(uuid())
+  listingId     String?   @map("listing_id")
+  requirementId String?   @map("requirement_id")
+  offerId       String?   @map("offer_id")
+  orderId       String?   @map("order_id")
+  subject       String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  members  ConversationMember[]
+  messages Message[]
+
+  @@index([listingId])
+  @@index([requirementId])
+  @@index([offerId])
+  @@index([orderId])
+  @@map("conversations")
+}
+
+model ConversationMember {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  userId         String   @map("user_id")
+  joinedAt       DateTime @default(now()) @map("joined_at")
+  lastReadAt     DateTime? @map("last_read_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_members")
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  senderId       String   @map("sender_id")
+  content        String
+  attachments    Json     @default("[]") // { url, name, type }[]
+  isDeleted      Boolean  @default(false) @map("is_deleted")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// =============================================================================
+// ADDRESSES
+// =============================================================================
+
+model Address {
+  id         String  @id @default(uuid())
+  userId     String  @map("user_id")
+  label      String? // "Home", "Business", etc.
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  country    String  @default("IN")
+  postalCode String? @map("postal_code")
+  latitude   Decimal? @db.Decimal(10, 7)
+  longitude  Decimal? @db.Decimal(10, 7)
+  isDefault  Boolean @default(false) @map("is_default")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+// =============================================================================
+// ORDERS
+// =============================================================================
+
+model Order {
+  id                    String      @id @default(uuid())
+  orderNumber           String      @unique @map("order_number") // human-readable: MM-2026-XXXXX
+  buyerId               String      @map("buyer_id")
+  growerId              String      @map("grower_id")
+  listingId             String      @map("listing_id")
+  offerId               String?     @map("offer_id")
+  status                OrderStatus @default(PENDING)
+  quantityKg            Decimal     @db.Decimal(10, 3) @map("quantity_kg")
+  unitPriceAtOrder      Decimal     @db.Decimal(10, 2) @map("unit_price_at_order") // locked at order time
+  subtotal              Decimal     @db.Decimal(12, 2)
+  platformCommissionRate Decimal    @db.Decimal(5, 4) @map("platform_commission_rate") // stored at order time
+  platformCommissionAmt  Decimal    @db.Decimal(12, 2) @map("platform_commission_amt")
+  taxes                 Decimal     @default(0) @db.Decimal(12, 2)
+  totalAmount           Decimal     @db.Decimal(12, 2) @map("total_amount")
+  currency              String      @default("INR")
+  fulfillmentMethod     FulfillmentMethod @map("fulfillment_method")
+  deliveryAddressId     String?     @map("delivery_address_id")
+  scheduledDate         DateTime?   @map("scheduled_date")
+  notes                 String?
+  cancellationReason    String?     @map("cancellation_reason")
+  cancelledBy           String?     @map("cancelled_by")
+  completedAt           DateTime?   @map("completed_at")
+  createdAt             DateTime    @default(now()) @map("created_at")
+  updatedAt             DateTime    @updatedAt @map("updated_at")
+
+  buyer               User         @relation("BuyerOrders", fields: [buyerId], references: [id])
+  grower              User         @relation("GrowerOrders", fields: [growerId], references: [id])
+  listing             Listing      @relation(fields: [listingId], references: [id])
+  offer               Offer?       @relation(fields: [offerId], references: [id])
+  deliveryAddress     Address?     @relation(fields: [deliveryAddressId], references: [id])
+  payment             Payment?
+  payout              Payout?
+  reviews             Review[]
+  dispute             Dispute?
+  statusHistory       OrderStatusHistory[]
+  inventoryTransactions InventoryTransaction[]
+
+  @@index([buyerId])
+  @@index([growerId])
+  @@index([listingId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([orderNumber])
+  @@map("orders")
+}
+
+model OrderStatusHistory {
+  id          String      @id @default(uuid())
+  orderId     String      @map("order_id")
+  fromStatus  OrderStatus? @map("from_status")
+  toStatus    OrderStatus @map("to_status")
+  changedBy   String?     @map("changed_by") // user id
+  reason      String?
+  metadata    Json?       // extra context
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_status_history")
+}
+
+// =============================================================================
+// PAYMENTS
+// =============================================================================
+
+model Payment {
+  id                String          @id @default(uuid())
+  orderId           String          @unique @map("order_id")
+  payerId           String          @map("payer_id")
+  provider          PaymentProvider @default(RAZORPAY)
+  providerOrderId   String?         @unique @map("provider_order_id")
+  providerPaymentId String?         @map("provider_payment_id")
+  providerSignature String?         @map("provider_signature")
+  amount            Decimal         @db.Decimal(12, 2)
+  currency          String          @default("INR")
+  status            PaymentStatus   @default(INITIATED)
+  initiatedAt       DateTime        @default(now()) @map("initiated_at")
+  completedAt       DateTime?       @map("completed_at")
+  failedAt          DateTime?       @map("failed_at")
+  failureReason     String?         @map("failure_reason")
+  refundAmount      Decimal?        @db.Decimal(12, 2) @map("refund_amount")
+  refundReason      String?         @map("refund_reason")
+  refundedAt        DateTime?       @map("refunded_at")
+  webhookEvents     Json            @default("[]") @map("webhook_events") // processed event IDs for idempotency
+  metadata          Json?
+
+  order Order @relation(fields: [orderId], references: [id])
+  user  User  @relation(fields: [payerId], references: [id]) @ignored // No relation defined, just reference
+
+  @@index([orderId])
+  @@index([payerId])
+  @@index([status])
+  @@index([providerOrderId])
+  @@map("payments")
+}
+
+// =============================================================================
+// PAYOUTS
+// =============================================================================
+
+model Payout {
+  id                String      @id @default(uuid())
+  growerId          String      @map("grower_id")
+  orderId           String      @unique @map("order_id")
+  paymentId         String?     @map("payment_id")
+  grossAmount       Decimal     @db.Decimal(12, 2) @map("gross_amount")
+  commissionAmount  Decimal     @db.Decimal(12, 2) @map("commission_amount")
+  netAmount         Decimal     @db.Decimal(12, 2) @map("net_amount")
+  status            PayoutStatus @default(PENDING)
+  providerTransferId String?    @map("provider_transfer_id")
+  scheduledAt       DateTime?   @map("scheduled_at")
+  processedAt       DateTime?   @map("processed_at")
+  failureReason     String?     @map("failure_reason")
+  notes             String?
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  grower User  @relation(fields: [growerId], references: [id])
+  order  Order @relation(fields: [orderId], references: [id])
+
+  @@index([growerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("payouts")
+}
+
+// =============================================================================
+// REVIEWS
+// =============================================================================
+
+model Review {
+  id          String     @id @default(uuid())
+  orderId     String     @map("order_id")
+  reviewerId  String     @map("reviewer_id")
+  revieweeId  String     @map("reviewee_id")
+  listingId   String?    @map("listing_id")
+  rating      Int        // 1–5
+  comment     String?
+  type        ReviewType
+  isVerified  Boolean    @default(true) @map("is_verified") // always true — enforced by order check
+  isHidden    Boolean    @default(false) @map("is_hidden") // admin can hide abusive reviews
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  order    Order   @relation(fields: [orderId], references: [id])
+  reviewer User    @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  reviewee User    @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+  listing  Listing? @relation(fields: [listingId], references: [id])
+
+  @@unique([orderId, reviewerId]) // one review per order per reviewer
+  @@index([revieweeId])
+  @@index([listingId])
+  @@index([rating])
+  @@index([createdAt])
+  @@map("reviews")
+
+  @@check(rating >= 1 && rating <= 5, name: "rating_range")
+}
+
+// =============================================================================
+// FAVORITES
+// =============================================================================
+
+model Favorite {
+  id         String             @id @default(uuid())
+  userId     String             @map("user_id")
+  targetType FavoriteTargetType @map("target_type")
+  targetId   String             @map("target_id")
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing? @relation(fields: [targetId], references: [id], map: "fk_fav_listing")
+
+  @@unique([userId, targetType, targetId])
+  @@index([userId])
+  @@map("favorites")
+}
+
+// =============================================================================
+// NOTIFICATIONS
+// =============================================================================
+
+model Notification {
+  id               String              @id @default(uuid())
+  userId           String              @map("user_id")
+  type             NotificationType
+  title            String
+  body             String
+  data             Json?               // extra context (orderId, listingId, etc.)
+  channel          NotificationChannel @default(IN_APP)
+  isRead           Boolean             @default(false) @map("is_read")
+  sentAt           DateTime?           @map("sent_at")
+  readAt           DateTime?           @map("read_at")
+  idempotencyKey   String              @unique @map("idempotency_key")
+  createdAt        DateTime            @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([type])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// =============================================================================
+// DISPUTES
+// =============================================================================
+
+model Dispute {
+  id              String        @id @default(uuid())
+  orderId         String        @unique @map("order_id")
+  raisedById      String        @map("raised_by_id")
+  againstId       String        @map("against_id")
+  type            DisputeType
+  description     String
+  evidence        Json          @default("[]") // { url, type, description }[]
+  status          DisputeStatus @default(OPEN)
+  resolution      String?
+  resolutionNotes String?       @map("resolution_notes")
+  resolvedBy      String?       @map("resolved_by")
+  resolvedAt      DateTime?     @map("resolved_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  order    Order @relation(fields: [orderId], references: [id])
+  raisedBy User  @relation("DisputeRaiser", fields: [raisedById], references: [id])
+  against  User  @relation("DisputeAgainst", fields: [againstId], references: [id])
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("disputes")
+}
+
+// =============================================================================
+// REPORTS
+// =============================================================================
+
+model Report {
+  id           String           @id @default(uuid())
+  reporterId   String           @map("reporter_id")
+  targetType   ReportTargetType @map("target_type")
+  targetId     String           @map("target_id")
+  reason       String
+  description  String?
+  status       ReportStatus     @default(PENDING)
+  adminNotes   String?          @map("admin_notes")
+  reviewedBy   String?          @map("reviewed_by")
+  reviewedAt   DateTime?        @map("reviewed_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  reporter User @relation(fields: [reporterId], references: [id])
+
+  @@index([targetType, targetId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("reports")
+}
+
+// =============================================================================
+// ADMIN & AUDIT
+// =============================================================================
+
+model AdminRoleAssignment {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  role       AdminRole
+  grantedBy  String?   @map("granted_by")
+  grantedAt  DateTime  @default(now()) @map("granted_at")
+  revokedAt  DateTime? @map("revoked_at")
+  revokedBy  String?   @map("revoked_by")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@index([userId])
+  @@map("admin_role_assignments")
+}
+
+model AuditLog {
+  id            String      @id @default(uuid())
+  adminId       String      @map("admin_id")
+  action        AuditAction
+  targetType    String?     @map("target_type")
+  targetId      String?     @map("target_id")
+  previousState Json?       @map("previous_state")
+  newState      Json?       @map("new_state")
+  reason        String?
+  ipAddress     String?     @map("ip_address")
+  userAgent     String?     @map("user_agent")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  admin User @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([action])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model PlatformSetting {
+  key         String   @id
+  value       Json     // flexible JSON value
+  description String?
+  updatedBy   String?  @map("updated_by")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_settings")
+}
