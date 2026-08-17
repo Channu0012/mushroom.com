@@ -1,13 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Search, Filter, MapPin, Star, ShieldCheck, SlidersHorizontal, X } from 'lucide-react';
+import { Search, MapPin, Star, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { Navigation } from '@/components/layout/navigation';
-import { debounce } from 'lodash';
 
 const FULFILLMENT_OPTIONS = [
   { value: '', label: 'Any' },
@@ -76,18 +74,25 @@ function ListingCard({ listing }: { listing: any }) {
 
 export default function ListingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [q, setQ] = useState('');
   const [filters, setFilters] = useState({
     fulfillmentMethod: '',
     minPrice: '',
     maxPrice: '',
-    state: '',
     verifiedOnly: false,
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
   });
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
-  const [q, setQ] = useState('');
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      setQ(val);
+      setPage(1);
+    }, 300);
+  };
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['listings', q, filters, page],
@@ -104,24 +109,14 @@ export default function ListingsPage() {
   const listings = data?.data || [];
   const meta = data?.meta;
 
-  const debouncedSearch = useCallback(
-    debounce((val: string) => {
-      setQ(val);
-      setPage(1);
-    }, 300),
-    [],
-  );
-
   return (
     <main className="min-h-screen bg-[#0f1a0f]">
       <Navigation />
       <div className="pt-20">
-        {/* Header */}
         <div className="border-b border-white/5 bg-[#0a0f0a]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <h1 className="text-2xl font-bold text-white mb-4">Browse Listings</h1>
 
-            {/* Search bar */}
             <div className="flex gap-3">
               <div className="relative flex-1">
                 <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -129,10 +124,7 @@ export default function ListingsPage() {
                   type="text"
                   id="search-listings"
                   value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    debouncedSearch(e.target.value);
-                  }}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   placeholder="Search oyster, shiitake, button..."
                   className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-green-500/50 transition-all"
                 />
@@ -148,7 +140,6 @@ export default function ListingsPage() {
               </button>
             </div>
 
-            {/* Filter panel */}
             {showFilters && (
               <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <select
@@ -191,7 +182,6 @@ export default function ListingsPage() {
           </div>
         </div>
 
-        {/* Results */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {meta && (
             <p className="text-gray-500 text-sm mb-6">
@@ -226,13 +216,12 @@ export default function ListingsPage() {
                 {listings.map((listing: any) => <ListingCard key={listing.id} listing={listing} />)}
               </div>
 
-              {/* Pagination */}
               {meta && meta.totalPages > 1 && (
                 <div className="flex items-center justify-center gap-3 mt-10">
                   <button
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={!meta.hasPrev}
-                    className="px-4 py-2 rounded-lg border border-white/10 text-gray-400 hover:border-white/20 disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                    className="px-4 py-2 rounded-lg border border-white/10 text-gray-400 hover:border-white/20 disabled:opacity-40 text-sm"
                   >
                     Previous
                   </button>
@@ -240,7 +229,7 @@ export default function ListingsPage() {
                   <button
                     onClick={() => setPage(p => p + 1)}
                     disabled={!meta.hasNext}
-                    className="px-4 py-2 rounded-lg border border-white/10 text-gray-400 hover:border-white/20 disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                    className="px-4 py-2 rounded-lg border border-white/10 text-gray-400 hover:border-white/20 disabled:opacity-40 text-sm"
                   >
                     Next
                   </button>

@@ -1,100 +1,96 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Eye, EyeOff, Lock, Mail, ArrowRight } from 'lucide-react';
-import { toast } from 'sonner';
+import Link from 'next/link';
+import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
-import type { Metadata } from 'next';
-
-const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email'),
-  password: z.string().min(1, 'Password is required'),
-});
-
-type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
   const { login, isLoading } = useAuthStore();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginForm>({ resolver: zodResolver(loginSchema) });
-
-  const onSubmit = async (data: LoginForm) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
     try {
-      await login(data.email, data.password);
-      toast.success('Welcome back!');
+      await login(email, password);
       router.push('/dashboard');
-    } catch (error: any) {
-      const message = error?.response?.data?.message || 'Login failed. Please try again.';
-      toast.error(message);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Invalid email or password. Please try again.');
     }
   };
 
   return (
-    <div className="min-h-screen hero-gradient flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <main className="min-h-screen bg-[#0d160f] flex items-center justify-center px-4 hero-gradient">
+      {/* Ambient glow */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-green-500/8 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2">
+          <Link href="/" className="inline-flex items-center gap-2 mb-6">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center">
-              <span className="text-lg">🍄</span>
+              <span className="text-xl">🍄</span>
             </div>
-            <span className="text-white font-semibold text-xl">MushroomMarket</span>
+            <span className="text-white font-bold text-xl">
+              Mushroom<span className="text-green-400">Market</span>
+            </span>
           </Link>
+          <h1 className="text-2xl font-bold text-white">Welcome back</h1>
+          <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
         </div>
 
-        {/* Card */}
         <div className="glass rounded-2xl border border-white/10 p-8">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-white">Welcome back</h1>
-            <p className="text-gray-400 text-sm mt-1">Log in to your marketplace account</p>
-          </div>
+          {error && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm mb-6">
+              <AlertCircle size={15} className="flex-shrink-0" />
+              {error}
+            </div>
+          )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            {/* Email */}
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
-              <div className="relative">
-                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                <input
-                  {...register('email')}
-                  type="email"
-                  id="email"
-                  autoComplete="email"
-                  placeholder="you@example.com"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/30 transition-all"
-                />
-              </div>
-              {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email.message}</p>}
+              <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-2">
+                Email address
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                placeholder="you@example.com"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-green-500/50 focus:bg-white/8 transition-all"
+              />
             </div>
 
-            {/* Password */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-300">Password</label>
+                <label htmlFor="password" className="text-sm font-medium text-gray-400">
+                  Password
+                </label>
                 <Link href="/forgot-password" className="text-xs text-green-400 hover:text-green-300">
                   Forgot password?
                 </Link>
               </div>
               <div className="relative">
-                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
-                  {...register('password')}
-                  type={showPassword ? 'text' : 'password'}
                   id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-10 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/30 transition-all"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pr-11 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-green-500/50 focus:bg-white/8 transition-all"
                 />
                 <button
                   type="button"
@@ -104,40 +100,33 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-              {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password.message}</p>}
             </div>
 
-            {/* Submit */}
             <button
+              id="login-submit-btn"
               type="submit"
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-green-500 hover:bg-green-400 disabled:bg-green-900 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all glow-green"
+              className="w-full flex items-center justify-center gap-2 py-3 bg-green-500 hover:bg-green-400 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all glow-green text-sm"
             >
               {isLoading ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Logging in...
-                </span>
-              ) : (
                 <>
-                  Log In
-                  <ArrowRight size={16} />
+                  <Loader2 size={16} className="animate-spin" />
+                  Signing in...
                 </>
+              ) : (
+                'Sign In'
               )}
             </button>
           </form>
 
-          <p className="text-center text-gray-500 text-sm mt-6">
+          <p className="text-center text-gray-600 text-sm mt-6">
             Don&apos;t have an account?{' '}
             <Link href="/register" className="text-green-400 hover:text-green-300 font-medium">
-              Create one free
+              Create account
             </Link>
           </p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

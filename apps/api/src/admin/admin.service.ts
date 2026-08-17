@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { VerificationStatus, UserStatus } from '@prisma/client';
+import { VerificationStatus, UserStatus, AuditAction } from '@prisma/client';
 
 @Injectable()
 export class AdminService {
@@ -40,17 +40,19 @@ export class AdminService {
         verificationStatus: status,
         verifiedAt: status === 'VERIFIED' ? new Date() : undefined,
         verifiedBy: status === 'VERIFIED' ? adminId : undefined,
-        rejectionReason: status === 'REJECTED' ? rejectionReason : undefined,
-        notes: notes,
+        description: notes || rejectionReason,
       },
     });
 
     // Log admin action
     await this.prisma.auditLog.create({
       data: {
-        adminId, entityType: 'farm', entityId: farmId,
-        action: `VERIFICATION_${status}`,
-        details: { notes, rejectionReason },
+        adminId,
+        action: status === 'VERIFIED' ? AuditAction.USER_VERIFIED : AuditAction.USER_REJECTED,
+        targetType: 'farm',
+        targetId: farmId,
+        reason: notes || rejectionReason,
+        newState: { status },
       },
     });
 
@@ -98,10 +100,18 @@ export class AdminService {
       data: { status },
     });
 
+    let action: AuditAction = AuditAction.USER_SUSPENDED;
+    if (status === UserStatus.ACTIVE) action = AuditAction.USER_REACTIVATED;
+    if (status === UserStatus.DEACTIVATED) action = AuditAction.USER_DEACTIVATED;
+
     await this.prisma.auditLog.create({
       data: {
-        adminId, entityType: 'user', entityId: userId,
-        action: `STATUS_${status}`, details: { reason },
+        adminId,
+        action,
+        targetType: 'user',
+        targetId: userId,
+        reason,
+        newState: { status },
       },
     });
 
@@ -127,7 +137,13 @@ export class AdminService {
   async featureListing(listingId: string, featured: boolean, adminId: string) {
     const updated = await this.prisma.listing.update({ where: { id: listingId }, data: { isFeatured: featured } });
     await this.prisma.auditLog.create({
-      data: { adminId, entityType: 'listing', entityId: listingId, action: featured ? 'FEATURE' : 'UNFEATURE', details: {} },
+      data: {
+        adminId,
+        action: AuditAction.LISTING_FEATURED,
+        targetType: 'listing',
+        targetId: listingId,
+        newState: { isFeatured: featured },
+      },
     });
     return updated;
   }
@@ -166,7 +182,6 @@ export class AdminService {
       },
     });
 
-    // Update order status based on decision
     if (decision === 'REFUND') {
       await this.prisma.order.update({ where: { id: dispute.orderId }, data: { status: 'REFUNDED' } });
     } else {
@@ -175,8 +190,12 @@ export class AdminService {
 
     await this.prisma.auditLog.create({
       data: {
-        adminId, entityType: 'dispute', entityId: disputeId,
-        action: `DISPUTE_RESOLVED_${decision}`, details: { resolution, refundAmount },
+        adminId,
+        action: AuditAction.DISPUTE_RESOLVED,
+        targetType: 'dispute',
+        targetId: disputeId,
+        reason: resolution,
+        newState: { decision, refundAmount },
       },
     });
 
@@ -211,14 +230,19 @@ export class AdminService {
       where: { id: payoutId },
       data: {
         status: 'PAID',
-        paidAt: new Date(),
-        transactionRef,
-        processedBy: adminId,
+        processedAt: new Date(),
+        providerTransferId: transactionRef,
       },
     });
 
     await this.prisma.auditLog.create({
-      data: { adminId, entityType: 'payout', entityId: payoutId, action: 'PAYOUT_PROCESSED', details: { transactionRef } },
+      data: {
+        adminId,
+        action: AuditAction.PAYOUT_PROCESSED,
+        targetType: 'payout',
+        targetId: payoutId,
+        newState: { transactionRef },
+      },
     });
 
     return updated;
@@ -232,12 +256,18 @@ export class AdminService {
   async updateSetting(key: string, value: any, adminId: string) {
     const updated = await this.prisma.platformSetting.upsert({
       where: { key },
-      create: { key, value, updatedBy: adminId },
-      update: { value, updatedBy: adminId, updatedAt: new Date() },
+      create: { key, value },
+      update: { value, updatedAt: new Date() },
     });
 
     await this.prisma.auditLog.create({
-      data: { adminId, entityType: 'setting', entityId: key, action: 'SETTING_UPDATED', details: { value } },
+      data: {
+        adminId,
+        action: AuditAction.PLATFORM_SETTING_CHANGED,
+        targetType: 'setting',
+        targetId: key,
+        newState: { value },
+      },
     });
 
     return updated;

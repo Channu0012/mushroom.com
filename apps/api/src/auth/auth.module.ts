@@ -15,9 +15,9 @@ import { RolesGuard } from '../common/guards/roles.guard';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_ACCESS_SECRET'),
+        secret: config.get<string>('JWT_ACCESS_SECRET') || 'default_jwt_secret_dev_key',
         signOptions: {
-          expiresIn: config.get<string>('JWT_ACCESS_EXPIRES_IN', '15m'),
+          expiresIn: '15m',
         },
       }),
     }),
@@ -26,7 +26,6 @@ import { RolesGuard } from '../common/guards/roles.guard';
   providers: [
     AuthService,
     JwtStrategy,
-    // Make JWT guard global so every route requires auth unless @Public()
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

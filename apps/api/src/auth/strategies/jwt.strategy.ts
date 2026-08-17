@@ -14,7 +14,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_ACCESS_SECRET'),
+      secretOrKey: configService.get<string>('JWT_ACCESS_SECRET') || 'default_jwt_secret_dev_key',
     });
   }
 
@@ -35,13 +35,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     }
 
     if (user.status === 'SUSPENDED') {
-      throw new UnauthorizedException(
-        'Your account has been suspended. Contact support for assistance.',
-      );
-    }
-
-    if (user.status === 'DEACTIVATED') {
-      throw new UnauthorizedException('Your account has been deactivated.');
+      throw new UnauthorizedException('Your account has been suspended.');
     }
 
     return user;

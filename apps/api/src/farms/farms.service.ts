@@ -4,9 +4,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFarmDto } from './dto/create-farm.dto';
 import { UpdateFarmDto } from './dto/update-farm.dto';
-import slugify from 'slugify';
 
-// slugify is a common util, using simple inline version:
 function toSlug(name: string): string {
   return name
     .toLowerCase()
@@ -19,11 +17,9 @@ export class FarmsService {
   constructor(private prisma: PrismaService) {}
 
   async createFarm(growerId: string, dto: CreateFarmDto) {
-    // Check grower doesn't already have a farm
     const existing = await this.prisma.farm.findUnique({ where: { growerId } });
     if (existing) throw new ConflictException('You already have a farm profile');
 
-    // Generate unique slug
     let slug = toSlug(dto.name);
     const slugCount = await this.prisma.farm.count({ where: { slug: { startsWith: slug } } });
     if (slugCount > 0) slug = `${slug}-${slugCount}`;

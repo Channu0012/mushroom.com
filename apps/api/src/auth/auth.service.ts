@@ -4,7 +4,6 @@ import {
   UnauthorizedException,
   BadRequestException,
   Logger,
-  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -27,22 +26,16 @@ export class AuthService {
     private config: ConfigService,
   ) {}
 
-  // ────────────────────────────────────────────────────────────
-  // REGISTER
-  // ────────────────────────────────────────────────────────────
   async register(dto: RegisterDto) {
-    // Block admin self-registration
     if (dto.role === UserRole.ADMIN) {
       throw new BadRequestException('Invalid registration role');
     }
 
-    // Check email uniqueness
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) {
       throw new ConflictException('An account with this email address already exists');
     }
 
-    // Check phone uniqueness if provided
     if (dto.phone) {
       const phoneExists = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
       if (phoneExists) {
@@ -52,7 +45,7 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     const emailVerifyToken = randomBytes(32).toString('hex');
-    const emailVerifyExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const emailVerifyExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const user = await this.prisma.user.create({
       data: {
@@ -81,13 +74,6 @@ export class AuthService {
 
     this.logger.log(`New user registered: ${user.email} (${user.role})`);
 
-    // TODO: Queue email verification email via NotificationsService
-    // this.notificationsQueue.add('send-email', {
-    //   type: 'EMAIL_VERIFICATION',
-    //   userId: user.id,
-    //   token: emailVerifyToken,
-    // });
-
     return {
       message:
         'Account created. Please check your email to verify your account before logging in.',
@@ -95,9 +81,6 @@ export class AuthService {
     };
   }
 
-  // ────────────────────────────────────────────────────────────
-  // LOGIN
-  // ────────────────────────────────────────────────────────────
   async login(dto: LoginDto, ipAddress?: string, userAgent?: string): Promise<TokenPair & { user: any }> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email, deletedAt: null },
@@ -112,7 +95,6 @@ export class AuthService {
     });
 
     if (!user) {
-      // Use same message to prevent email enumeration
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -131,15 +113,12 @@ export class AuthService {
       throw new UnauthorizedException('This account has been deactivated.');
     }
 
-    // Update last login
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
 
     const tokens = await this.generateTokenPair(user.id, user.email, user.role);
-
-    // Store refresh token hash
     await this.storeRefreshToken(user.id, tokens.refreshToken, ipAddress, userAgent);
 
     return {
@@ -154,14 +133,11 @@ export class AuthService {
     };
   }
 
-  // ────────────────────────────────────────────────────────────
-  // REFRESH TOKEN
-  // ────────────────────────────────────────────────────────────
   async refreshTokens(refreshToken: string, ipAddress?: string, userAgent?: string): Promise<TokenPair> {
     let payload: any;
     try {
       payload = this.jwtService.verify(refreshToken, {
-        secret: this.config.get<string>('JWT_REFRESH_SECRET'),
+        secret: this.config.get<string>('JWT_REFRESH_SECRET') || 'default_jwt_refresh_secret',
       });
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
@@ -175,7 +151,6 @@ export class AuthService {
     });
 
     if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
-      // Potential token reuse — revoke all tokens for this user (security measure)
       if (stored?.userId) {
         await this.revokeAllUserTokens(stored.userId);
         this.logger.warn(`Refresh token reuse detected for user ${stored.userId}`);
@@ -193,7 +168,6 @@ export class AuthService {
       throw new UnauthorizedException('Account access denied');
     }
 
-    // Rotate: revoke old token, issue new pair
     await this.prisma.refreshToken.update({
       where: { tokenHash },
       data: { revokedAt: new Date() },
@@ -205,23 +179,15 @@ export class AuthService {
     return tokens;
   }
 
-  // ────────────────────────────────────────────────────────────
-  // LOGOUT
-  // ────────────────────────────────────────────────────────────
   async logout(refreshToken: string) {
     if (!refreshToken) return;
-
     const tokenHash = this.hashToken(refreshToken);
-
     await this.prisma.refreshToken.updateMany({
       where: { tokenHash, revokedAt: null },
       data: { revokedAt: new Date() },
     });
   }
 
-  // ────────────────────────────────────────────────────────────
-  // EMAIL VERIFICATION
-  // ────────────────────────────────────────────────────────────
   async verifyEmail(token: string) {
     const user = await this.prisma.user.findFirst({
       where: {
@@ -248,20 +214,14 @@ export class AuthService {
       },
     });
 
-    this.logger.log(`Email verified for user: ${user.email}`);
-
     return { message: 'Email verified successfully. You can now log in.' };
   }
 
-  // ────────────────────────────────────────────────────────────
-  // FORGOT PASSWORD
-  // ────────────────────────────────────────────────────────────
   async forgotPassword(email: string) {
     const user = await this.prisma.user.findUnique({
       where: { email, deletedAt: null },
     });
 
-    // Always return success to prevent email enumeration
     if (!user) {
       return {
         message: 'If an account exists with this email, a password reset link has been sent.',
@@ -269,7 +229,7 @@ export class AuthService {
     }
 
     const resetToken = randomBytes(32).toString('hex');
-    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -279,17 +239,11 @@ export class AuthService {
       },
     });
 
-    // TODO: Queue password reset email
-    this.logger.log(`Password reset requested for: ${email}`);
-
     return {
       message: 'If an account exists with this email, a password reset link has been sent.',
     };
   }
 
-  // ────────────────────────────────────────────────────────────
-  // RESET PASSWORD
-  // ────────────────────────────────────────────────────────────
   async resetPassword(dto: ResetPasswordDto) {
     const user = await this.prisma.user.findFirst({
       where: {
@@ -315,46 +269,39 @@ export class AuthService {
           passwordResetExpires: null,
         },
       }),
-      // Revoke all existing sessions
       this.prisma.refreshToken.updateMany({
         where: { userId: user.id, revokedAt: null },
         data: { revokedAt: new Date() },
       }),
     ]);
 
-    this.logger.log(`Password reset completed for: ${user.email}`);
-
     return { message: 'Password reset successfully. Please log in with your new password.' };
   }
 
-  // ────────────────────────────────────────────────────────────
-  // PRIVATE HELPERS
-  // ────────────────────────────────────────────────────────────
   private async generateTokenPair(
     userId: string,
     email: string,
     role: string,
   ): Promise<TokenPair> {
     const payload = { sub: userId, email, role };
-
-    const accessExpiresIn = this.config.get<string>('JWT_ACCESS_EXPIRES_IN', '15m');
-    const refreshExpiresIn = this.config.get<string>('JWT_REFRESH_EXPIRES_IN', '7d');
+    const accessSecret = this.config.get<string>('JWT_ACCESS_SECRET') || 'default_jwt_secret_dev_key';
+    const refreshSecret = this.config.get<string>('JWT_REFRESH_SECRET') || 'default_jwt_refresh_secret';
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
-        secret: this.config.get<string>('JWT_ACCESS_SECRET'),
-        expiresIn: accessExpiresIn,
+        secret: accessSecret,
+        expiresIn: 900,
       }),
       this.jwtService.signAsync(payload, {
-        secret: this.config.get<string>('JWT_REFRESH_SECRET'),
-        expiresIn: refreshExpiresIn,
+        secret: refreshSecret,
+        expiresIn: 604800,
       }),
     ]);
 
     return {
       accessToken,
       refreshToken,
-      expiresIn: 900, // 15 minutes in seconds
+      expiresIn: 900,
     };
   }
 
@@ -365,7 +312,7 @@ export class AuthService {
     userAgent?: string,
   ) {
     const tokenHash = this.hashToken(refreshToken);
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     await this.prisma.refreshToken.create({
       data: {
