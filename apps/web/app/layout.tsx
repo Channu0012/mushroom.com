@@ -9,10 +9,18 @@ export const metadata: Metadata = {
   title: 'MushroomMarket — India\'s Premier Mushroom Marketplace',
   description: 'Connect with verified mushroom growers across India. Fresh, quality mushrooms delivered to your door. Trade oyster, shiitake, button mushrooms and more.',
   keywords: 'mushroom marketplace, buy mushrooms india, mushroom growers, fresh mushrooms, oyster mushrooms, shiitake',
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/icon.png', type: 'image/png' },
+    ],
+    apple: '/icon.png',
+  },
   openGraph: {
     title: 'MushroomMarket — India\'s Premier Mushroom Marketplace',
     description: 'Connect with verified mushroom growers. Fresh quality mushrooms B2B & B2C.',
     type: 'website',
+    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
   },
 };
 

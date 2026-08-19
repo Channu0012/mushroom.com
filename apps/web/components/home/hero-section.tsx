@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight, ShieldCheck, Truck, Star } from 'lucide-react';
 
 export function HeroSection() {
@@ -87,7 +88,15 @@ export function HeroSection() {
               {/* Main card */}
               <div className="glass rounded-2xl p-6 border border-white/10 glow-green">
                 <div className="text-center mb-4">
-                  <div className="text-6xl mb-2">🍄</div>
+                  <div className="w-24 h-24 mx-auto mb-3 rounded-2xl overflow-hidden ring-2 ring-green-500/30 pulse-glow">
+                    <Image
+                      src="/logo.png"
+                      alt="MushroomMarket"
+                      width={96}
+                      height={96}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                   <h3 className="text-white font-semibold">Oyster Mushrooms</h3>
                   <p className="text-gray-400 text-sm">Ravi&apos;s Green Farm, Pune</p>
                 </div>

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -9,12 +10,18 @@ export function Footer() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
           {/* Brand */}
           <div className="lg:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center">
-                <span className="text-sm">🍄</span>
+            <Link href="/" className="flex items-center gap-2.5 mb-4 group">
+              <div className="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-green-500/20 group-hover:ring-green-400/40 transition-all">
+                <Image
+                  src="/logo.png"
+                  alt="MushroomMarket Logo"
+                  width={36}
+                  height={36}
+                  className="w-full h-full object-cover"
+                />
               </div>
-              <span className="text-white font-semibold">
-                Mushroom<span className="text-green-400">Market</span>
+              <span className="text-white font-bold tracking-tight">
+                Mushroom<span className="gradient-text">Market</span>
               </span>
             </Link>
             <p className="text-gray-600 text-sm leading-relaxed mb-4">

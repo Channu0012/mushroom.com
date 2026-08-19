@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle, Info } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -91,12 +92,19 @@ export default function RegisterPage() {
 
       <div className="relative w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <span className="text-xl">🍄</span>
+          <Link href="/" className="inline-flex items-center gap-2.5 mb-6 group">
+            <div className="w-12 h-12 rounded-xl overflow-hidden ring-1 ring-green-500/20 group-hover:ring-green-400/40 transition-all group-hover:scale-105">
+              <Image
+                src="/logo.png"
+                alt="MushroomMarket Logo"
+                width={48}
+                height={48}
+                className="w-full h-full object-cover"
+                priority
+              />
             </div>
-            <span className="text-white font-bold text-xl">
-              Mushroom<span className="text-green-400">Market</span>
+            <span className="text-white font-bold text-xl tracking-tight">
+              Mushroom<span className="gradient-text">Market</span>
             </span>
           </Link>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Create Account</h1>

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 import { Menu, X, ShoppingBasket, Bell, User, LogOut, LayoutDashboard } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
@@ -21,12 +22,19 @@ export function Navigation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <span className="text-sm font-bold text-white">🍄</span>
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-9 h-9 rounded-xl overflow-hidden ring-1 ring-green-500/20 group-hover:ring-green-400/40 transition-all group-hover:scale-105">
+              <Image
+                src="/logo.png"
+                alt="MushroomMarket Logo"
+                width={36}
+                height={36}
+                className="w-full h-full object-cover"
+                priority
+              />
             </div>
-            <span className="text-white font-semibold text-lg hidden sm:block">
-              Mushroom<span className="text-green-400">Market</span>
+            <span className="text-white font-bold text-lg hidden sm:block tracking-tight">
+              Mushroom<span className="gradient-text">Market</span>
             </span>
           </Link>
 
