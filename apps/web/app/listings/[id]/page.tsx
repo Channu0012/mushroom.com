@@ -21,7 +21,65 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
 
   const { data: listing, isLoading, error } = useQuery({
     queryKey: ['listing', id],
-    queryFn: () => apiClient.get<any>(`/listings/${id}`),
+    queryFn: async () => {
+      try {
+        return await apiClient.get<any>(`/listings/${id}`);
+      } catch (err) {
+        if (typeof window !== 'undefined') {
+          const customRaw = sessionStorage.getItem('custom_listings');
+          if (customRaw) {
+            const list = JSON.parse(customRaw);
+            const found = list.find((item: any) => item.id === id);
+            if (found) return found;
+          }
+        }
+        
+        // Demo fallbacks
+        const demoListings: Record<string, any> = {
+          lst_demo_1: {
+            id: 'lst_demo_1',
+            title: 'Fresh Organic Oyster Mushrooms - Grade A Batch',
+            description: 'Harvested fresh daily from bio-controlled indoor farm in Pune/Bangalore. High protein, zero pesticides.\n\nOptimal storage at 2-4°C. Ideal for culinary restaurants, retail distribution, and health-conscious buyers.',
+            pricePerKg: 240,
+            availableQuantityKg: 150,
+            minOrderQuantityKg: 5,
+            fulfillmentMethod: 'BOTH',
+            mushroomType: { name: 'Oyster', emoji: '🦪' },
+            farm: { name: 'GreenEarth Bio Farm', city: 'Bangalore', state: 'Karnataka', verificationStatus: 'VERIFIED', averageRating: 4.9, totalReviews: 14, grower: { id: 'usr_grower_1' } },
+            reviews: [
+              { id: 'r1', rating: 5, comment: 'Phenomenal freshness and clean packaging! Arrived on schedule.', reviewer: { profile: { displayName: 'Oberoi Kitchens' } } }
+            ]
+          },
+          lst_demo_2: {
+            id: 'lst_demo_2',
+            title: 'Premium White Button Mushrooms (Commercial Grade)',
+            description: 'Firm texture, ideal for restaurants, retail stores, and food processors.\n\nFSSAI certified batch grown under controlled humidity and temperature.',
+            pricePerKg: 190,
+            availableQuantityKg: 500,
+            minOrderQuantityKg: 10,
+            fulfillmentMethod: 'BOTH',
+            mushroomType: { name: 'Button', emoji: '🍄' },
+            farm: { name: 'Himalayan Organic Fungi', city: 'Solan', state: 'Himachal Pradesh', verificationStatus: 'VERIFIED', averageRating: 4.8, totalReviews: 8, grower: { id: 'usr_grower_2' } },
+            reviews: []
+          },
+          lst_demo_3: {
+            id: 'lst_demo_3',
+            title: 'Fresh Exotic Shiitake Mushrooms - Cold Chain Ready',
+            description: 'Authentic rich umami flavor, vacuum sealed upon harvest.\n\nSuitable for gourmet dining, high-end Asian cuisine, and specialized grocery markets.',
+            pricePerKg: 650,
+            availableQuantityKg: 80,
+            minOrderQuantityKg: 2,
+            fulfillmentMethod: 'SELLER_DELIVERY',
+            mushroomType: { name: 'Shiitake', emoji: '🌿' },
+            farm: { name: 'Nilgiri Specialty Spores', city: 'Ooty', state: 'Tamil Nadu', verificationStatus: 'VERIFIED', averageRating: 4.9, totalReviews: 12, grower: { id: 'usr_grower_3' } },
+            reviews: []
+          }
+        };
+
+        if (demoListings[id]) return demoListings[id];
+        throw err;
+      }
+    },
     staleTime: 30 * 1000,
   });
 

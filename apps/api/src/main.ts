@@ -18,7 +18,7 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
   const webUrl = config.get<string>('WEB_URL', 'http://localhost:3000');
-  const apiPort = config.get<number>('API_PORT', 3001);
+  const apiPort = config.get<number>('PORT') || config.get<number>('API_PORT', 3001);
   const nodeEnv = config.get<string>('NODE_ENV', 'development');
   const additionalOrigins = config.get<string>('ADDITIONAL_CORS_ORIGINS', '');
 

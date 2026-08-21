@@ -1,0 +1,43 @@
+# Render Blueprint — Mushroom Marketplace API
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: mushroom-api
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: apps/api
+    buildCommand: |
+      npm install
+      cd ../../packages/database && npm install && npx prisma generate
+      cd ../../apps/api && npm run build
+    startCommand: node dist/main.js
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false  # Set manually in Render dashboard
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: WEB_URL
+        sync: false
+      - key: API_URL
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: "MushroomMarket <noreply@mushroommarket.in>"
+      - key: INITIAL_COMMISSION_RATE
+        value: "0.03"
